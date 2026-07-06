@@ -1,11 +1,5 @@
 import { Booking } from "../models/booking.model.js";
-import { AppError } from "../utils/AppError.js";
-
-const ensureDatabaseReady = () => {
-  if (Booking.db.readyState !== 1) {
-    throw new AppError("Database is not configured. Set MONGODB_URI in backend/.env.", 503);
-  }
-};
+import { ensureDatabaseReady } from "../utils/databaseReady.js";
 
 export const listBookings = async () => {
   ensureDatabaseReady();
