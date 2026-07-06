@@ -1,0 +1,27 @@
+{
+  "name": "onlinebooking-backend",
+  "version": "1.0.0",
+  "description": "Express API for OnlineBooking.",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
+  },
+  "keywords": [
+    "booking",
+    "express",
+    "mongodb"
+  ],
+  "author": "Rezaul1990 <rezaulpust.19.cse@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.9.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
+
