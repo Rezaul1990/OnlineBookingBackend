@@ -1,19 +1,16 @@
-const app = require("./app");
-const connectDatabase = require("./config/db");
-const env = require("./config/env");
+import { app } from "./app.js";
+import { connectDatabase } from "./config/db.js";
+import { env } from "./config/env.js";
 
 const startServer = async () => {
-  try {
-    await connectDatabase();
+  await connectDatabase();
 
-    app.listen(env.port, () => {
-      console.log(`Server running on port ${env.port}`);
-    });
-  } catch (error) {
-    console.error("Failed to start server:", error.message);
-    process.exit(1);
-  }
+  app.listen(env.port, () => {
+    console.log(`OnlineBooking API running on port ${env.port}`);
+  });
 };
 
-startServer();
-
+startServer().catch((error) => {
+  console.error("Failed to start server", error);
+  process.exit(1);
+});

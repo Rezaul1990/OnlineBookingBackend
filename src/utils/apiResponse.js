@@ -1,4 +1,4 @@
-const sendSuccess = (res, message, data = null, statusCode = 200) => {
+export const successResponse = (res, { statusCode = 200, message = "Success", data = null }) => {
   return res.status(statusCode).json({
     success: true,
     message,
@@ -6,12 +6,10 @@ const sendSuccess = (res, message, data = null, statusCode = 200) => {
   });
 };
 
-const sendCreated = (res, message, data = null) => {
-  return sendSuccess(res, message, data, 201);
+export const errorResponse = (res, { statusCode = 500, message = "Something went wrong", errors = null }) => {
+  return res.status(statusCode).json({
+    success: false,
+    message,
+    errors
+  });
 };
-
-module.exports = {
-  sendSuccess,
-  sendCreated
-};
-

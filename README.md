@@ -1,30 +1,30 @@
 # OnlineBooking Backend
 
-Express REST API foundation for OnlineBooking.
+Express REST API for booking management.
+
+## Environment
+
+Create `.env` from `.env.example`:
+
+```env
+PORT=5000
+NODE_ENV=development
+MONGODB_URI=your_mongodb_atlas_connection_string_here
+JWT_SECRET=your_jwt_secret_here
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=http://localhost:3000
+```
 
 ## Scripts
 
-```powershell
+```bash
 npm install
 npm run dev
+npm start
 ```
 
-## Environment Variables
+## Endpoints
 
-Copy `.env.example` to `.env` and set:
-
-- `PORT`
-- `NODE_ENV`
-- `MONGODB_URI`
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN`
-- `CORS_ORIGIN`
-
-## API
-
-```text
-GET /api/health
-```
-
-Returns API and database status.
-
+- `GET /api/health`
+- `GET /api/bookings`
+- `POST /api/bookings`
