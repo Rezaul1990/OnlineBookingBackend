@@ -3,7 +3,7 @@ import path from "node:path";
 import multer from "multer";
 import { AppError } from "../utils/AppError.js";
 
-const uploadDir = path.resolve(process.cwd(), "uploads");
+const uploadDir = process.env.VERCEL ? "/tmp/uploads" : path.resolve(process.cwd(), "uploads");
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });

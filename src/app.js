@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from "./middlewares/error.middleware.js
 import apiRoutes from "./routes/index.js";
 
 export const app = express();
+const uploadDir = process.env.VERCEL ? "/tmp/uploads" : path.resolve(process.cwd(), "uploads");
 
 app.use(
   helmet({
@@ -19,7 +20,7 @@ app.use(cors({ origin: env.corsOrigin, credentials: true }));
 app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan(env.nodeEnv === "production" ? "combined" : "dev"));
-app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+app.use("/uploads", express.static(uploadDir));
 
 app.use("/api", apiRoutes);
 
