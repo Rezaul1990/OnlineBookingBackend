@@ -1,5 +1,7 @@
 import { Booking } from "../models/booking.model.js";
+import { Provider } from "../models/service.model.js";
 import { AppError } from "../utils/AppError.js";
+import { isFutureSlotTime } from "../utils/date.js";
 import crypto from "node:crypto";
 import mongoose from "mongoose";
 
@@ -25,6 +27,22 @@ export const createBooking = async (payload) => {
     publicToken: crypto.randomBytes(24).toString("hex")
   };
   if (!isDatabaseReady()) return createEphemeralBooking(bookingPayload);
+
+  const provider = await Provider.findById(payload.providerId);
+  const slot = provider?.slots.id(payload.slotId);
+  if (!provider || !slot || !slot.active) {
+    throw new AppError("Selected time slot is no longer available.", 409);
+  }
+  if (!isFutureSlotTime(slot.date, slot.startTime)) {
+    throw new AppError("Please select a current or future time slot.", 400);
+  }
+
+  const blockingStatuses = ["pending_call", "confirmed"];
+  const existingBookings = await Booking.countDocuments({ slotId: String(slot._id), status: { $in: blockingStatuses } });
+  if (existingBookings >= slot.capacity) {
+    throw new AppError("This time slot is already booked. Please choose another slot.", 409);
+  }
+
   return Booking.create(bookingPayload);
 };
 

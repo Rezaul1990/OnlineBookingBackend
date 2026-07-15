@@ -1,5 +1,11 @@
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const isPastDate = (date) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
+};
+
 export const createBookingSchema = (body) => {
   const errors = {};
   const data = {
@@ -30,6 +36,8 @@ export const createBookingSchema = (body) => {
   const parsedDate = new Date(data.bookingDate);
   if (Number.isNaN(parsedDate.getTime())) {
     errors.bookingDate = "A valid booking date is required.";
+  } else if (isPastDate(parsedDate)) {
+    errors.bookingDate = "Booking date cannot be in the past.";
   } else {
     data.bookingDate = parsedDate;
   }

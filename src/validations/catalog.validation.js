@@ -1,6 +1,8 @@
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+const todayDateString = () => new Date().toISOString().slice(0, 10);
+
 export const serviceSchema = (body) => {
   const errors = {};
   const data = {
@@ -55,6 +57,7 @@ export const slotSchema = (body) => {
 
   const parsedDate = new Date(`${data.date}T00:00:00`);
   if (!data.date || Number.isNaN(parsedDate.getTime())) errors.date = "A valid slot date is required.";
+  if (data.date && data.date < todayDateString()) errors.date = "Slot date cannot be in the past.";
   if (!timePattern.test(data.startTime)) errors.startTime = "Start time must use HH:mm format.";
   if (!timePattern.test(data.endTime)) errors.endTime = "End time must use HH:mm format.";
   if (data.startTime >= data.endTime) errors.endTime = "End time must be after start time.";

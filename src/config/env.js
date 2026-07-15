@@ -9,6 +9,7 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || "change_this_jwt_secret",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
+  businessTimeZone: process.env.BUSINESS_TIME_ZONE || "Asia/Dhaka",
   ownerName: process.env.OWNER_NAME || "",
   ownerEmail: process.env.OWNER_EMAIL || "",
   ownerPassword: process.env.OWNER_PASSWORD || ""

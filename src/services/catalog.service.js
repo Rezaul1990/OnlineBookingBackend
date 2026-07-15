@@ -1,8 +1,18 @@
 import mongoose from "mongoose";
+import { Booking } from "../models/booking.model.js";
 import { Provider, Service } from "../models/service.model.js";
 import { AppError } from "../utils/AppError.js";
 import { ensureDatabaseReady } from "../utils/databaseReady.js";
+import { addDaysToDateString, getTodayDateString, isFutureSlotTime } from "../utils/date.js";
 import { slugify } from "../utils/slugify.js";
+
+const sampleDate = (offsetDays) => addDaysToDateString(getTodayDateString(), offsetDays);
+
+const sampleTime = (offsetHours) => {
+  const date = new Date();
+  date.setHours(date.getHours() + offsetHours, 0, 0, 0);
+  return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Dhaka" });
+};
 
 const sampleCatalog = [
   {
@@ -28,8 +38,9 @@ const sampleCatalog = [
         active: true,
         serviceIds: ["sample-consultation"],
         slots: [
-          { _id: "slot-a-1", date: "2026-07-08", startTime: "10:00", endTime: "10:45", capacity: 1, active: true },
-          { _id: "slot-a-2", date: "2026-07-08", startTime: "12:00", endTime: "12:45", capacity: 1, active: true }
+          { _id: "slot-a-1", date: sampleDate(0), startTime: sampleTime(1), endTime: sampleTime(2), capacity: 1, active: true },
+          { _id: "slot-a-2", date: sampleDate(0), startTime: sampleTime(3), endTime: sampleTime(4), capacity: 1, active: true },
+          { _id: "slot-a-3", date: sampleDate(1), startTime: "10:00", endTime: "10:45", capacity: 1, active: true }
         ]
       },
       {
@@ -43,8 +54,8 @@ const sampleCatalog = [
         active: true,
         serviceIds: ["sample-consultation"],
         slots: [
-          { _id: "slot-b-1", date: "2026-07-08", startTime: "11:00", endTime: "11:45", capacity: 1, active: true },
-          { _id: "slot-b-2", date: "2026-07-10", startTime: "16:00", endTime: "16:45", capacity: 1, active: true }
+          { _id: "slot-b-1", date: sampleDate(0), startTime: sampleTime(2), endTime: sampleTime(3), capacity: 1, active: true },
+          { _id: "slot-b-2", date: sampleDate(2), startTime: "16:00", endTime: "16:45", capacity: 1, active: true }
         ]
       }
     ]
@@ -72,8 +83,8 @@ const sampleCatalog = [
         active: true,
         serviceIds: ["sample-care"],
         slots: [
-          { _id: "slot-c-1", date: "2026-07-09", startTime: "09:30", endTime: "10:30", capacity: 1, active: true },
-          { _id: "slot-c-2", date: "2026-07-10", startTime: "14:00", endTime: "15:00", capacity: 1, active: true }
+          { _id: "slot-c-1", date: sampleDate(1), startTime: "09:30", endTime: "10:30", capacity: 1, active: true },
+          { _id: "slot-c-2", date: sampleDate(3), startTime: "14:00", endTime: "15:00", capacity: 1, active: true }
         ]
       }
     ]
@@ -93,7 +104,28 @@ const normalizeIds = (ids = []) => {
   return [...new Set(ids.filter((id) => mongoose.Types.ObjectId.isValid(id)).map((id) => String(id)))];
 };
 
-const attachProvidersToServices = (services, providers, publicOnly = false) => {
+const blockingStatuses = ["pending_call", "confirmed"];
+
+const buildBookedSlotCounts = async () => {
+  const bookings = await Booking.aggregate([
+    { $match: { status: { $in: blockingStatuses }, bookingDate: { $gte: new Date(`${getTodayDateString()}T00:00:00.000Z`) } } },
+    { $group: { _id: "$slotId", count: { $sum: 1 } } }
+  ]);
+  return new Map(bookings.map((booking) => [String(booking._id), booking.count]));
+};
+
+const publicSlotFilter = (slot, bookedSlotCounts = new Map()) => {
+  if (!slot.active || !isFutureSlotTime(slot.date, slot.startTime)) return false;
+
+  const bookedCount = bookedSlotCounts.get(String(slot._id)) || 0;
+  return bookedCount < slot.capacity;
+};
+
+const sortSlots = (slots) => {
+  return [...slots].sort((first, second) => `${first.date} ${first.startTime}`.localeCompare(`${second.date} ${second.startTime}`));
+};
+
+const attachProvidersToServices = (services, providers, publicOnly = false, bookedSlotCounts = new Map()) => {
   return services.map((service) => {
     const serviceId = String(service._id);
     const assignedProviders = providers
@@ -101,15 +133,16 @@ const attachProvidersToServices = (services, providers, publicOnly = false) => {
       .filter((provider) => !publicOnly || provider.active)
       .map((provider) => ({
         ...provider,
-        slots: (provider.slots || []).filter((slot) => !publicOnly || slot.active)
-      }));
+        slots: sortSlots((provider.slots || []).filter((slot) => !publicOnly || publicSlotFilter(slot, bookedSlotCounts)))
+      }))
+      .filter((provider) => !publicOnly || provider.slots.length > 0);
 
     return {
       ...service,
       providerIds: assignedProviders.map((provider) => provider._id),
       providers: assignedProviders
     };
-  });
+  }).filter((service) => !publicOnly || service.providers.length > 0);
 };
 
 const syncServiceAssignments = async (serviceId, providerIds) => {
@@ -126,14 +159,73 @@ const syncProviderAssignments = async (providerId, serviceIds) => {
   }
 };
 
-export const listPublicCatalog = async () => {
-  if (!canUseDatabase()) return sampleCatalog;
+const createDefaultCatalog = async () => {
+  const serviceIdMap = new Map();
+  const providerIdsByService = new Map();
 
-  const [services, providers] = await Promise.all([
+  for (const sampleService of sampleCatalog) {
+    const service = await Service.findOneAndUpdate(
+      { slug: sampleService.slug },
+      {
+        name: sampleService.name,
+        slug: sampleService.slug,
+        category: sampleService.category,
+        description: sampleService.description,
+        imageUrl: sampleService.imageUrl,
+        durationMinutes: sampleService.durationMinutes,
+        price: sampleService.price,
+        active: true,
+        providers: []
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+    serviceIdMap.set(sampleService._id, service._id);
+    providerIdsByService.set(String(service._id), []);
+  }
+
+  for (const sampleService of sampleCatalog) {
+    const serviceId = serviceIdMap.get(sampleService._id);
+    for (const sampleProvider of sampleService.providers) {
+      const existingProvider = await Provider.findOne({ email: sampleProvider.email });
+      const providerPayload = {
+        name: sampleProvider.name,
+        title: sampleProvider.title,
+        email: sampleProvider.email,
+        phone: sampleProvider.phone,
+        bio: sampleProvider.bio,
+        imageUrl: sampleProvider.imageUrl,
+        active: true,
+        serviceIds: [serviceId],
+        slots: sampleProvider.slots.map((slot) => ({ ...slot, _id: undefined, serviceId }))
+      };
+      const provider = existingProvider
+        ? await Provider.findByIdAndUpdate(existingProvider._id, providerPayload, { new: true, runValidators: true })
+        : await Provider.create(providerPayload);
+      providerIdsByService.get(String(serviceId))?.push(provider._id);
+    }
+  }
+
+  for (const [serviceId, providerIds] of providerIdsByService.entries()) {
+    await Service.findByIdAndUpdate(serviceId, { providerIds });
+  }
+};
+
+export const listPublicCatalog = async () => {
+  if (!canUseDatabase()) return attachProvidersToServices(sampleCatalog, sampleCatalog.flatMap((service) => service.providers), true);
+
+  let [services, providers] = await Promise.all([
     Service.find({ active: true }).sort({ category: 1, name: 1 }).lean(),
     Provider.find({ active: true }).sort({ name: 1 }).lean()
   ]);
-  return attachProvidersToServices(services, providers, true);
+  if (!services.length || !providers.length) {
+    await createDefaultCatalog();
+    [services, providers] = await Promise.all([
+      Service.find({ active: true }).sort({ category: 1, name: 1 }).lean(),
+      Provider.find({ active: true }).sort({ name: 1 }).lean()
+    ]);
+  }
+  const bookedSlotCounts = await buildBookedSlotCounts();
+  return attachProvidersToServices(services, providers, true, bookedSlotCounts);
 };
 
 export const listAdminCatalog = async () => {
@@ -212,6 +304,12 @@ export const createSlot = async (serviceId, providerId, payload) => {
   if (!provider) throw new AppError("Provider not found.", 404);
   if (!provider.serviceIds.map(String).includes(String(serviceId))) {
     throw new AppError("Provider is not assigned to this service.", 400);
+  }
+  const duplicateSlot = provider.slots.some((slot) => {
+    return String(slot.serviceId) === String(serviceId) && slot.date === payload.date && slot.startTime === payload.startTime && slot.endTime === payload.endTime;
+  });
+  if (duplicateSlot) {
+    throw new AppError("This provider already has a slot for that date and time.", 409);
   }
   provider.slots.push({ ...payload, serviceId });
   await provider.save();
