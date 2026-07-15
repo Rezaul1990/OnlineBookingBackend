@@ -22,15 +22,44 @@ const bookingSchema = new mongoose.Schema(
       trim: true,
       maxlength: 30
     },
+    clientType: {
+      type: String,
+      enum: ["new", "returning"],
+      default: "new"
+    },
+    serviceId: {
+      type: String,
+      trim: true
+    },
     serviceName: {
       type: String,
       required: true,
       trim: true,
       maxlength: 120
     },
+    providerId: {
+      type: String,
+      trim: true
+    },
+    providerName: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120
+    },
+    slotId: {
+      type: String,
+      trim: true
+    },
     bookingDate: {
       type: Date,
       required: true
+    },
+    slotLabel: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120
     },
     notes: {
       type: String,
@@ -38,10 +67,15 @@ const bookingSchema = new mongoose.Schema(
       maxlength: 500,
       default: ""
     },
+    publicToken: {
+      type: String,
+      required: true,
+      select: false
+    },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "cancelled"],
-      default: "pending"
+      enum: ["pending_call", "confirmed", "reschedule_requested", "cancelled", "completed", "no_show"],
+      default: "pending_call"
     }
   },
   { timestamps: true }

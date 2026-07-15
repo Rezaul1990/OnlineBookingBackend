@@ -7,6 +7,15 @@ export const connectDatabase = async () => {
     return;
   }
 
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+
+  if (mongoose.connection.readyState === 2) {
+    await mongoose.connection.asPromise();
+    return;
+  }
+
   await mongoose.connect(env.mongodbUri);
   console.log("MongoDB connected");
 };

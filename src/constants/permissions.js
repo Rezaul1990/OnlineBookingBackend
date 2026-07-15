@@ -18,6 +18,36 @@ export const permissionModules = [
     ]
   },
   {
+    module: "services",
+    label: "Services",
+    permissions: [
+      { action: "view", label: "View services", description: "View bookable service catalog." },
+      { action: "create", label: "Create services", description: "Create bookable services." },
+      { action: "update", label: "Update services", description: "Edit service details and status." },
+      { action: "delete", label: "Delete services", description: "Remove services when allowed." }
+    ]
+  },
+  {
+    module: "providers",
+    label: "Providers",
+    permissions: [
+      { action: "view", label: "View providers", description: "View service providers." },
+      { action: "create", label: "Create providers", description: "Add providers under services." },
+      { action: "update", label: "Update providers", description: "Edit provider details and assignments." },
+      { action: "delete", label: "Delete providers", description: "Remove providers when allowed." }
+    ]
+  },
+  {
+    module: "availability",
+    label: "Availability",
+    permissions: [
+      { action: "view", label: "View availability", description: "View provider time slots." },
+      { action: "create", label: "Create availability", description: "Create provider time slots." },
+      { action: "update", label: "Update availability", description: "Edit provider time slots." },
+      { action: "delete", label: "Delete availability", description: "Remove provider time slots." }
+    ]
+  },
+  {
     module: "staff",
     label: "Staff",
     permissions: [

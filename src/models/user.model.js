@@ -28,8 +28,21 @@ const userSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "inactive", "suspended"],
-      default: "active"
+      enum: ["invited", "active", "inactive", "suspended"],
+      default: "invited"
+    },
+    inviteTokenHash: {
+      type: String,
+      default: null,
+      select: false
+    },
+    inviteExpiresAt: {
+      type: Date,
+      default: null
+    },
+    passwordSetAt: {
+      type: Date,
+      default: null
     },
     lastLoginAt: {
       type: Date,

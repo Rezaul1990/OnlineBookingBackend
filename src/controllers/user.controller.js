@@ -1,4 +1,4 @@
-import { createUser, listUsers, updateUser } from "../services/user.service.js";
+import { createUser, listUsers, setupInvitedUserPassword, updateUser } from "../services/user.service.js";
 import { successResponse } from "../utils/apiResponse.js";
 
 export const getUsers = async (req, res, next) => {
@@ -15,10 +15,22 @@ export const getUsers = async (req, res, next) => {
 
 export const postUser = async (req, res, next) => {
   try {
-    const user = await createUser({ req, actorId: req.user._id, payload: req.body });
+    const result = await createUser({ req, actorId: req.user._id, payload: req.body });
     return successResponse(res, {
       statusCode: 201,
       message: "User created successfully",
+      data: result
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const setupPassword = async (req, res, next) => {
+  try {
+    const user = await setupInvitedUserPassword(req.body);
+    return successResponse(res, {
+      message: "Password created successfully",
       data: { user }
     });
   } catch (error) {
