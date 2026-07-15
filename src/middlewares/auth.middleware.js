@@ -4,7 +4,9 @@ import { verifyAuthToken } from "../utils/token.js";
 
 export const requireAuth = async (req, res, next) => {
   try {
-    const token = req.cookies?.admin_token || "";
+    const authHeader = req.get("authorization") || "";
+    const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    const token = req.cookies?.admin_token || bearerToken;
 
     if (!token) {
       throw new AppError("Authentication required.", 401);

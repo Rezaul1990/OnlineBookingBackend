@@ -8,7 +8,7 @@ export const login = async (req, res, next) => {
     res.cookie("admin_token", token, authCookieOptions());
     return successResponse(res, {
       message: "Login successful",
-      data: { user }
+      data: { token, user }
     });
   } catch (error) {
     return next(error);
