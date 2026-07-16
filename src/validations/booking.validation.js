@@ -1,4 +1,6 @@
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const paymentMethods = ["cash", "bkash", "nagad", "card"];
+const paymentStatuses = ["unpaid", "partial", "paid", "waived"];
 
 const isPastDate = (date) => {
   const today = new Date();
@@ -20,6 +22,8 @@ export const createBookingSchema = (body) => {
     slotId: String(body.slotId || "").trim(),
     slotLabel: String(body.slotLabel || "").trim(),
     bookingDate: body.bookingDate,
+    paymentMethod: paymentMethods.includes(body.paymentMethod) ? body.paymentMethod : "cash",
+    paymentAmount: Number(body.paymentAmount || 0),
     notes: String(body.notes || "").trim()
   };
 
@@ -43,6 +47,7 @@ export const createBookingSchema = (body) => {
   }
 
   if (data.notes.length > 500) errors.notes = "Notes cannot exceed 500 characters.";
+  if (!Number.isFinite(data.paymentAmount) || data.paymentAmount < 0) errors.paymentAmount = "Payment amount must be zero or higher.";
 
   return {
     valid: Object.keys(errors).length === 0,
@@ -82,6 +87,10 @@ export const adminBookingSchema = (body) => {
     slotLabel: String(body.slotLabel || "").trim(),
     bookingDate: body.bookingDate,
     notes: String(body.notes || "").trim(),
+    paymentMethod: paymentMethods.includes(body.paymentMethod) ? body.paymentMethod : "cash",
+    paymentStatus: paymentStatuses.includes(body.paymentStatus) ? body.paymentStatus : "unpaid",
+    paymentAmount: Number(body.paymentAmount || 0),
+    paidAmount: Number(body.paidAmount || 0),
     status: String(body.status || "pending_call").trim()
   };
 
@@ -92,6 +101,9 @@ export const adminBookingSchema = (body) => {
   if (data.providerName.length < 2) errors.providerName = "Provider name must be at least 2 characters.";
   if (data.slotLabel.length < 2) errors.slotLabel = "Slot label is required.";
   if (!["pending_call", "confirmed", "reschedule_requested", "cancelled", "completed", "no_show"].includes(data.status)) errors.status = "A valid booking status is required.";
+  if (!Number.isFinite(data.paymentAmount) || data.paymentAmount < 0) errors.paymentAmount = "Payment amount must be zero or higher.";
+  if (!Number.isFinite(data.paidAmount) || data.paidAmount < 0) errors.paidAmount = "Paid amount must be zero or higher.";
+  if (data.paidAmount > data.paymentAmount && !["cancelled", "no_show"].includes(data.status)) errors.paidAmount = "Paid amount cannot exceed payment amount.";
 
   const parsedDate = new Date(data.bookingDate);
   if (Number.isNaN(parsedDate.getTime())) {

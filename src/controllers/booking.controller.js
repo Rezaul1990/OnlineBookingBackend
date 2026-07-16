@@ -40,7 +40,7 @@ export const postBooking = async (req, res, next) => {
 
 export const patchBookingStatus = async (req, res, next) => {
   try {
-    const booking = await updateBookingStatus(req.params.id, req.body.status);
+    const booking = await updateBookingStatus(req.params.id, req.body.status, req.authUser);
     return successResponse(res, {
       message: "Booking status updated successfully",
       data: { booking }
@@ -52,7 +52,7 @@ export const patchBookingStatus = async (req, res, next) => {
 
 export const patchBooking = async (req, res, next) => {
   try {
-    const booking = await updateBooking(req.params.id, req.body);
+    const booking = await updateBooking(req.params.id, req.body, req.authUser);
     return successResponse(res, {
       message: "Booking updated successfully",
       data: { booking }

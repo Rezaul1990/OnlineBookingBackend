@@ -12,9 +12,49 @@ const createEphemeralBooking = (payload) => ({
   ...payload,
   publicToken: payload.publicToken || crypto.randomBytes(24).toString("hex"),
   status: payload.status || "pending_call",
+  paymentMethod: payload.paymentMethod || "cash",
+  paymentStatus: payload.paymentStatus || "unpaid",
+  paymentAmount: payload.paymentAmount || 0,
+  paidAmount: payload.paidAmount || 0,
+  balanceAmount: payload.balanceAmount || 0,
+  timeline: payload.timeline || [],
   createdAt: new Date(),
   updatedAt: new Date()
 });
+
+const actorFromAuth = (actor) => ({
+  actorName: actor?.name || "Customer",
+  actorRole: actor?.role?.name || actor?.role?.slug || "customer"
+});
+
+const timelineEntry = (action, label, actor, note = "") => ({
+  action,
+  label,
+  ...actorFromAuth(actor),
+  note,
+  at: new Date()
+});
+
+const normalizePayment = (payload) => {
+  const cancelled = ["cancelled", "no_show"].includes(payload.status);
+  const paymentAmount = cancelled ? 0 : Math.max(Number(payload.paymentAmount || 0), 0);
+  const paidAmount = cancelled ? 0 : Math.min(Math.max(Number(payload.paidAmount || 0), 0), paymentAmount);
+  const balanceAmount = Math.max(paymentAmount - paidAmount, 0);
+  let paymentStatus = payload.paymentStatus || "unpaid";
+
+  if (cancelled) paymentStatus = "waived";
+  else if (paidAmount >= paymentAmount && paymentAmount > 0) paymentStatus = "paid";
+  else if (paidAmount > 0) paymentStatus = "partial";
+  else paymentStatus = "unpaid";
+
+  return {
+    paymentMethod: payload.paymentMethod || "cash",
+    paymentStatus,
+    paymentAmount,
+    paidAmount,
+    balanceAmount
+  };
+};
 
 export const listBookings = async () => {
   if (!isDatabaseReady()) return [];
@@ -143,9 +183,11 @@ export const listAdminBookings = async (query = {}) => {
   };
 };
 
-export const createBooking = async (payload) => {
+export const createBooking = async (payload, actor = null) => {
   const bookingPayload = {
     ...payload,
+    ...normalizePayment({ ...payload, paidAmount: payload.paidAmount || 0, status: payload.status || "pending_call" }),
+    timeline: [timelineEntry("created", "Booking request created", actor, `Payment method: ${payload.paymentMethod || "cash"}`)],
     publicToken: crypto.randomBytes(24).toString("hex")
   };
   if (!isDatabaseReady()) return createEphemeralBooking(bookingPayload);
@@ -168,26 +210,39 @@ export const createBooking = async (payload) => {
   return Booking.create(bookingPayload);
 };
 
-export const updateBookingStatus = async (bookingId, status) => {
+export const updateBookingStatus = async (bookingId, status, actor = null) => {
   if (!allowedStatuses.includes(status)) {
     throw new AppError("Invalid booking status.", 400);
   }
 
   if (!isDatabaseReady() || bookingId.startsWith("local-")) {
-    return createEphemeralBooking({ _id: bookingId, status });
+    return createEphemeralBooking({ _id: bookingId, status, ...normalizePayment({ status }) });
   }
 
-  const booking = await Booking.findByIdAndUpdate(bookingId, { status }, { new: true, runValidators: true });
+  const existing = await Booking.findById(bookingId);
+  if (!existing) throw new AppError("Booking not found.", 404);
+
+  existing.status = status;
+  existing.set(normalizePayment({ ...existing.toObject(), status }));
+  existing.timeline.push(timelineEntry("status_updated", `Status changed to ${status.replaceAll("_", " ")}`, actor));
+  const booking = await existing.save();
   if (!booking) throw new AppError("Booking not found.", 404);
   return booking;
 };
 
-export const updateBooking = async (bookingId, payload) => {
+export const updateBooking = async (bookingId, payload, actor = null) => {
   if (!isDatabaseReady() || bookingId.startsWith("local-")) {
-    return createEphemeralBooking({ _id: bookingId, ...payload });
+    return createEphemeralBooking({ _id: bookingId, ...payload, ...normalizePayment(payload) });
   }
 
-  const booking = await Booking.findByIdAndUpdate(bookingId, payload, { new: true, runValidators: true });
+  const update = { ...payload, ...normalizePayment(payload) };
+  delete update.timeline;
+  delete update.publicToken;
+  const booking = await Booking.findByIdAndUpdate(
+    bookingId,
+    { ...update, $push: { timeline: timelineEntry("edited", "Booking details updated", actor, "Admin edited booking details or payment.") } },
+    { new: true, runValidators: true }
+  );
   if (!booking) throw new AppError("Booking not found.", 404);
   return booking;
 };
@@ -209,10 +264,14 @@ export const updatePublicBookingStatus = async (bookingId, status, publicToken) 
   }
 
   if (!isDatabaseReady() || bookingId.startsWith("local-")) {
-    return createEphemeralBooking({ _id: bookingId, status, publicToken });
+    return createEphemeralBooking({ _id: bookingId, status, publicToken, ...normalizePayment({ status }) });
   }
 
-  const booking = await Booking.findOneAndUpdate({ _id: bookingId, publicToken }, { status }, { new: true, runValidators: true }).select("+publicToken");
+  const booking = await Booking.findOne({ _id: bookingId, publicToken }).select("+publicToken");
   if (!booking) throw new AppError("Booking not found or token is invalid.", 404);
+  booking.status = status;
+  booking.set(normalizePayment({ ...booking.toObject(), status }));
+  booking.timeline.push(timelineEntry("public_status_updated", `Customer requested ${status.replaceAll("_", " ")}`, null));
+  await booking.save();
   return booking;
 };

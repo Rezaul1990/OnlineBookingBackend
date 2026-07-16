@@ -1,5 +1,17 @@
 import mongoose from "mongoose";
 
+const timelineSchema = new mongoose.Schema(
+  {
+    action: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    actorName: { type: String, trim: true, default: "System" },
+    actorRole: { type: String, trim: true, default: "system" },
+    note: { type: String, trim: true, default: "" },
+    at: { type: Date, default: Date.now }
+  },
+  { _id: true }
+);
+
 const bookingSchema = new mongoose.Schema(
   {
     customerName: {
@@ -67,6 +79,35 @@ const bookingSchema = new mongoose.Schema(
       maxlength: 500,
       default: ""
     },
+    paymentMethod: {
+      type: String,
+      enum: ["cash", "bkash", "nagad", "card"],
+      default: "cash"
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "partial", "paid", "waived"],
+      default: "unpaid"
+    },
+    paymentAmount: {
+      type: Number,
+      min: 0,
+      default: 0
+    },
+    paidAmount: {
+      type: Number,
+      min: 0,
+      default: 0
+    },
+    balanceAmount: {
+      type: Number,
+      min: 0,
+      default: 0
+    },
+    timeline: {
+      type: [timelineSchema],
+      default: []
+    },
     publicToken: {
       type: String,
       required: true,
@@ -83,5 +124,6 @@ const bookingSchema = new mongoose.Schema(
 
 bookingSchema.index({ bookingDate: 1, status: 1 });
 bookingSchema.index({ email: 1 });
+bookingSchema.index({ paymentStatus: 1, paymentMethod: 1 });
 
 export const Booking = mongoose.model("Booking", bookingSchema);

@@ -15,7 +15,11 @@ const emptyReport = (filters) => ({
     noShow: 0,
     cancellationRate: 0,
     completionRate: 0,
-    noShowRate: 0
+    noShowRate: 0,
+    totalPaymentAmount: 0,
+    totalPaidAmount: 0,
+    totalBalanceAmount: 0,
+    waivedAmount: 0
   },
   byStatus: statuses.map((status) => ({ status, count: 0 })),
   byService: [],
@@ -135,6 +139,16 @@ export const getBookingReport = async (query) => {
   }, {});
 
   const totalBookings = bookings.length;
+  const paymentTotals = bookings.reduce(
+    (acc, booking) => {
+      acc.totalPaymentAmount += Number(booking.paymentAmount || 0);
+      acc.totalPaidAmount += Number(booking.paidAmount || 0);
+      acc.totalBalanceAmount += Number(booking.balanceAmount || 0);
+      if (booking.paymentStatus === "waived") acc.waivedAmount += Number(booking.paymentAmount || 0);
+      return acc;
+    },
+    { totalPaymentAmount: 0, totalPaidAmount: 0, totalBalanceAmount: 0, waivedAmount: 0 }
+  );
 
   return {
     filters,
@@ -148,7 +162,8 @@ export const getBookingReport = async (query) => {
       noShow: counts.no_show,
       cancellationRate: percent(counts.cancelled, totalBookings),
       completionRate: percent(counts.completed, totalBookings),
-      noShowRate: percent(counts.no_show, totalBookings)
+      noShowRate: percent(counts.no_show, totalBookings),
+      ...paymentTotals
     },
     byStatus: statuses.map((status) => ({ status, count: counts[status] })),
     byService: groupByName(bookings, "serviceName"),
