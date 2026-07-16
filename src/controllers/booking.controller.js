@@ -1,4 +1,4 @@
-import { createBooking, listBookings, removeBooking, updateBooking, updateBookingStatus, updatePublicBookingStatus } from "../services/booking.service.js";
+import { createBooking, listAdminBookings, listBookings, removeBooking, updateBooking, updateBookingStatus, updatePublicBookingStatus } from "../services/booking.service.js";
 import { successResponse } from "../utils/apiResponse.js";
 
 export const getBookings = async (req, res, next) => {
@@ -15,10 +15,10 @@ export const getBookings = async (req, res, next) => {
 
 export const getAdminBookings = async (req, res, next) => {
   try {
-    const bookings = await listBookings();
+    const result = await listAdminBookings(req.query);
     return successResponse(res, {
       message: "Admin bookings retrieved successfully",
-      data: { bookings }
+      data: result
     });
   } catch (error) {
     return next(error);
