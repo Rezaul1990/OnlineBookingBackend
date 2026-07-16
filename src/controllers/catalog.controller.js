@@ -16,7 +16,7 @@ import {
   updateServiceImage,
   updateSlot
 } from "../services/catalog.service.js";
-import { buildUploadedImageUrl } from "../middlewares/upload.middleware.js";
+import { uploadToCloudinary } from "../middlewares/upload.middleware.js";
 import { successResponse } from "../utils/apiResponse.js";
 
 export const getPublicCatalog = async (req, res, next) => {
@@ -173,7 +173,8 @@ export const deleteProviderClosedDate = async (req, res, next) => {
 
 export const uploadServiceImage = async (req, res, next) => {
   try {
-    const service = await updateServiceImage(req.params.serviceId, buildUploadedImageUrl(req));
+    const imageUrl = await uploadToCloudinary(req, "onlinebooking/services");
+    const service = await updateServiceImage(req.params.serviceId, imageUrl);
     return successResponse(res, {
       message: "Service image uploaded successfully",
       data: { service }
@@ -185,7 +186,8 @@ export const uploadServiceImage = async (req, res, next) => {
 
 export const uploadProviderImage = async (req, res, next) => {
   try {
-    const provider = await updateProviderImage(req.params.serviceId, req.params.providerId, buildUploadedImageUrl(req));
+    const imageUrl = await uploadToCloudinary(req, "onlinebooking/providers");
+    const provider = await updateProviderImage(req.params.serviceId, req.params.providerId, imageUrl);
     return successResponse(res, {
       message: "Provider image uploaded successfully",
       data: { provider }

@@ -1,22 +1,11 @@
-import fs from "node:fs";
-import path from "node:path";
+import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
+import { env } from "../config/env.js";
 import { AppError } from "../utils/AppError.js";
 
-const uploadDir = process.env.VERCEL ? "/tmp/uploads" : path.resolve(process.cwd(), "uploads");
+if (env.cloudinaryUrl) cloudinary.config({ secure: true });
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, callback) => callback(null, uploadDir),
-  filename: (req, file, callback) => {
-    const extension = path.extname(file.originalname).toLowerCase();
-    const safeName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
-    callback(null, safeName);
-  }
-});
+const storage = multer.memoryStorage();
 
 const imageFileFilter = (req, file, callback) => {
   if (!file.mimetype.startsWith("image/")) {
@@ -33,7 +22,29 @@ export const uploadImage = multer({
   limits: { fileSize: 2 * 1024 * 1024 }
 });
 
-export const buildUploadedImageUrl = (req) => {
+export const uploadToCloudinary = (req, folder = "onlinebooking") => {
   if (!req.file) return "";
-  return `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+  if (!env.cloudinaryUrl) {
+    throw new AppError("Cloudinary storage is not configured.", 500);
+  }
+
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: "image",
+        overwrite: false,
+        transformation: [{ quality: "auto", fetch_format: "auto" }]
+      },
+      (error, result) => {
+        if (error || !result?.secure_url) {
+          reject(new AppError("Unable to upload image.", 502));
+          return;
+        }
+        resolve(result.secure_url);
+      }
+    );
+
+    stream.end(req.file.buffer);
+  });
 };

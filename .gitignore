@@ -16,3 +16,5 @@ Thumbs.db
 # Ignore all Markdown documentation and agent instruction files.
 *.md
 **/*.md
+
+.vercel
