@@ -41,8 +41,12 @@ export const uploadToCloudinary = (req, folder = "onlinebooking") => {
       },
       (error, result) => {
         if (error || !result?.secure_url) {
-          if (error) console.error("Cloudinary image upload failed:", error.message);
-          reject(new AppError("Unable to upload image.", 502));
+          const cloudinaryMessage = error?.message || "";
+          if (cloudinaryMessage) console.error("Cloudinary image upload failed:", cloudinaryMessage);
+          const message = /invalid signature|must supply api_key|api key|api_secret/i.test(cloudinaryMessage)
+            ? "Cloudinary rejected the upload. Check the backend CLOUDINARY_URL API key and secret."
+            : "Unable to upload image.";
+          reject(new AppError(message, 502));
           return;
         }
         resolve(result.secure_url);
