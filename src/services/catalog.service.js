@@ -330,9 +330,12 @@ const minutesSinceMidnight = (time) => {
 };
 
 const nextDateString = (dateString) => {
-  const date = new Date(`${dateString}T00:00:00`);
-  date.setDate(date.getDate() + 1);
-  return date.toISOString().slice(0, 10);
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day + 1);
+  const nextYear = date.getFullYear();
+  const nextMonth = String(date.getMonth() + 1).padStart(2, "0");
+  const nextDay = String(date.getDate()).padStart(2, "0");
+  return `${nextYear}-${nextMonth}-${nextDay}`;
 };
 
 export const createBulkSlots = async (serviceId, providerId, payload) => {
