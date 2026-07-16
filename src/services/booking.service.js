@@ -197,6 +197,9 @@ export const createBooking = async (payload, actor = null) => {
   if (!provider || !slot || !slot.active) {
     throw new AppError("Selected time slot is no longer available.", 409);
   }
+  if ((provider.closedDates || []).some((closedDate) => closedDate.date === slot.date)) {
+    throw new AppError("This provider is closed on the selected date. Please choose another slot.", 409);
+  }
   if (!isFutureSlotTime(slot.date, slot.startTime)) {
     throw new AppError("Please select a current or future time slot.", 400);
   }

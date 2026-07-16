@@ -121,6 +121,8 @@ const publicSlotFilter = (slot, bookedSlotCounts = new Map()) => {
   return bookedCount < slot.capacity;
 };
 
+const providerClosedDates = (provider) => new Set((provider.closedDates || []).map((closedDate) => closedDate.date || closedDate));
+
 const sortSlots = (slots) => {
   return [...slots].sort((first, second) => `${first.date} ${first.startTime}`.localeCompare(`${second.date} ${second.startTime}`));
 };
@@ -133,7 +135,7 @@ const attachProvidersToServices = (services, providers, publicOnly = false, book
       .filter((provider) => !publicOnly || provider.active)
       .map((provider) => ({
         ...provider,
-        slots: sortSlots((provider.slots || []).filter((slot) => !publicOnly || publicSlotFilter(slot, bookedSlotCounts)))
+        slots: sortSlots((provider.slots || []).filter((slot) => !publicOnly || (!providerClosedDates(provider).has(slot.date) && publicSlotFilter(slot, bookedSlotCounts))))
       }))
       .filter((provider) => !publicOnly || provider.slots.length > 0);
 
@@ -316,6 +318,71 @@ export const createSlot = async (serviceId, providerId, payload) => {
   return provider;
 };
 
+const addMinutes = (time, minutes) => {
+  const [hours, mins] = time.split(":").map(Number);
+  const date = new Date(2000, 0, 1, hours, mins + minutes, 0, 0);
+  return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+};
+
+const minutesSinceMidnight = (time) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+const nextDateString = (dateString) => {
+  const date = new Date(`${dateString}T00:00:00`);
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+};
+
+export const createBulkSlots = async (serviceId, providerId, payload) => {
+  ensureDatabaseReady();
+  const provider = await Provider.findById(providerId);
+  if (!provider) throw new AppError("Provider not found.", 404);
+  if (!provider.serviceIds.map(String).includes(String(serviceId))) {
+    throw new AppError("Provider is not assigned to this service.", 400);
+  }
+
+  const startMinutes = minutesSinceMidnight(payload.startTime);
+  const endMinutes = minutesSinceMidnight(payload.endTime);
+  const intervalsPerDay = Math.floor((endMinutes - startMinutes) / payload.durationMinutes);
+  if (intervalsPerDay < 1) throw new AppError("Duration must fit inside the selected start and end time.", 400);
+
+  const existingKeys = new Set(
+    provider.slots.map((slot) => [String(slot.serviceId), slot.date, slot.startTime, slot.endTime].join("|"))
+  );
+  const closedDates = providerClosedDates(provider);
+  const slots = [];
+  let skippedClosed = 0;
+  let skippedDuplicates = 0;
+
+  for (let date = payload.dateFrom; date <= payload.dateTo; date = nextDateString(date)) {
+    const day = new Date(`${date}T00:00:00`).getDay();
+    if (!payload.selectedDays.includes(day)) continue;
+    if (closedDates.has(date)) {
+      skippedClosed += intervalsPerDay;
+      continue;
+    }
+
+    for (let index = 0; index < intervalsPerDay; index += 1) {
+      const startTime = addMinutes(payload.startTime, index * payload.durationMinutes);
+      const endTime = addMinutes(startTime, payload.durationMinutes);
+      const key = [String(serviceId), date, startTime, endTime].join("|");
+      if (existingKeys.has(key)) {
+        skippedDuplicates += 1;
+        continue;
+      }
+      existingKeys.add(key);
+      slots.push({ serviceId, date, startTime, endTime, capacity: payload.capacity, active: payload.active });
+    }
+  }
+
+  if (slots.length > 2500) throw new AppError("Too many slots at once. Narrow the date range or increase duration.", 400);
+  provider.slots.push(...slots);
+  await provider.save();
+  return { provider, created: slots.length, skippedDuplicates, skippedClosed };
+};
+
 export const updateSlot = async (serviceId, providerId, slotId, payload) => {
   ensureDatabaseReady();
   const provider = await Provider.findById(providerId);
@@ -334,6 +401,25 @@ export const removeSlot = async (serviceId, providerId, slotId) => {
   const slot = provider.slots.id(slotId);
   if (!slot) throw new AppError("Slot not found.", 404);
   slot.deleteOne();
+  await provider.save();
+  return provider;
+};
+
+export const addProviderClosedDate = async (providerId, payload) => {
+  ensureDatabaseReady();
+  const provider = await Provider.findById(providerId);
+  if (!provider) throw new AppError("Provider not found.", 404);
+  const exists = provider.closedDates?.some((closedDate) => closedDate.date === payload.date);
+  if (!exists) provider.closedDates.push(payload);
+  await provider.save();
+  return provider;
+};
+
+export const removeProviderClosedDate = async (providerId, date) => {
+  ensureDatabaseReady();
+  const provider = await Provider.findById(providerId);
+  if (!provider) throw new AppError("Provider not found.", 404);
+  provider.closedDates = (provider.closedDates || []).filter((closedDate) => closedDate.date !== date);
   await provider.save();
   return provider;
 };

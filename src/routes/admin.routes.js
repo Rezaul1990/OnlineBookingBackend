@@ -8,12 +8,15 @@ import {
 } from "../controllers/booking.controller.js";
 import {
   deleteProvider,
+  deleteProviderClosedDate,
   deleteService,
   deleteSlot,
   getAdminCatalog,
   patchProvider,
   patchService,
   patchSlot,
+  postBulkSlots,
+  postProviderClosedDate,
   postProvider,
   postService,
   postSlot,
@@ -27,7 +30,7 @@ import { requireAnyPermission, requireAuth, requirePermission } from "../middlew
 import { uploadImage } from "../middlewares/upload.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { roleSchema } from "../validations/role.validation.js";
-import { providerSchema, serviceSchema, slotSchema } from "../validations/catalog.validation.js";
+import { bulkSlotSchema, closedDateSchema, providerSchema, serviceSchema, slotSchema } from "../validations/catalog.validation.js";
 import { adminBookingSchema, bookingStatusSchema } from "../validations/booking.validation.js";
 import { createUserSchema, updateUserSchema } from "../validations/user.validation.js";
 
@@ -52,8 +55,11 @@ router.post("/services/:serviceId/providers", requirePermission("providers.creat
 router.patch("/services/:serviceId/providers/:providerId", requirePermission("providers.update"), validate(providerSchema), patchProvider);
 router.delete("/services/:serviceId/providers/:providerId", requirePermission("providers.delete"), deleteProvider);
 router.post("/services/:serviceId/providers/:providerId/slots", requirePermission("availability.create"), validate(slotSchema), postSlot);
+router.post("/services/:serviceId/providers/:providerId/slots/bulk", requirePermission("availability.create"), validate(bulkSlotSchema), postBulkSlots);
 router.patch("/services/:serviceId/providers/:providerId/slots/:slotId", requirePermission("availability.update"), validate(slotSchema), patchSlot);
 router.delete("/services/:serviceId/providers/:providerId/slots/:slotId", requirePermission("availability.delete"), deleteSlot);
+router.post("/providers/:providerId/closed-dates", requirePermission("availability.update"), validate(closedDateSchema), postProviderClosedDate);
+router.delete("/providers/:providerId/closed-dates/:date", requirePermission("availability.update"), deleteProviderClosedDate);
 router.post("/services/:serviceId/image", requirePermission("services.update"), uploadImage.single("image"), uploadServiceImage);
 router.post("/services/:serviceId/providers/:providerId/image", requirePermission("providers.update"), uploadImage.single("image"), uploadProviderImage);
 

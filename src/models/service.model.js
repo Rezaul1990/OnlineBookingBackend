@@ -12,6 +12,14 @@ const slotSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const closedDateSchema = new mongoose.Schema(
+  {
+    date: { type: String, required: true, trim: true },
+    reason: { type: String, trim: true, maxlength: 160, default: "" }
+  },
+  { _id: true }
+);
+
 const providerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 100 },
@@ -22,6 +30,7 @@ const providerSchema = new mongoose.Schema(
     imageUrl: { type: String, trim: true, maxlength: 500, default: "" },
     active: { type: Boolean, default: true },
     serviceIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Service" }],
+    closedDates: [closedDateSchema],
     slots: [slotSchema]
   },
   { timestamps: true }

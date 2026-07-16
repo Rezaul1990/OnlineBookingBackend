@@ -1,10 +1,13 @@
 import {
+  addProviderClosedDate,
   createProvider,
   createService,
+  createBulkSlots,
   createSlot,
   listAdminCatalog,
   listPublicCatalog,
   removeProvider,
+  removeProviderClosedDate,
   removeService,
   removeSlot,
   updateProvider,
@@ -115,6 +118,19 @@ export const postSlot = async (req, res, next) => {
   }
 };
 
+export const postBulkSlots = async (req, res, next) => {
+  try {
+    const result = await createBulkSlots(req.params.serviceId, req.params.providerId, req.body);
+    return successResponse(res, {
+      statusCode: 201,
+      message: "Slots created successfully",
+      data: result
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 export const patchSlot = async (req, res, next) => {
   try {
     const provider = await updateSlot(req.params.serviceId, req.params.providerId, req.params.slotId, req.body);
@@ -128,6 +144,28 @@ export const deleteSlot = async (req, res, next) => {
   try {
     const provider = await removeSlot(req.params.serviceId, req.params.providerId, req.params.slotId);
     return successResponse(res, { message: "Slot deleted successfully", data: { provider } });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const postProviderClosedDate = async (req, res, next) => {
+  try {
+    const provider = await addProviderClosedDate(req.params.providerId, req.body);
+    return successResponse(res, {
+      statusCode: 201,
+      message: "Provider close date added successfully",
+      data: { provider }
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const deleteProviderClosedDate = async (req, res, next) => {
+  try {
+    const provider = await removeProviderClosedDate(req.params.providerId, req.params.date);
+    return successResponse(res, { message: "Provider close date removed successfully", data: { provider } });
   } catch (error) {
     return next(error);
   }
