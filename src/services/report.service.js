@@ -82,7 +82,7 @@ const groupByName = (bookings, key) => {
   const grouped = bookings.reduce((acc, booking) => {
     const name = booking[key] || "Unassigned";
     if (!acc[name]) {
-      acc[name] = { name, count: 0, confirmed: 0, cancelled: 0, completed: 0, noShow: 0 };
+      acc[name] = { name, count: 0, confirmed: 0, cancelled: 0, completed: 0, noShow: 0, paymentAmount: 0, paidAmount: 0, balanceAmount: 0 };
     }
 
     acc[name].count += 1;
@@ -90,6 +90,9 @@ const groupByName = (bookings, key) => {
     if (booking.status === "cancelled") acc[name].cancelled += 1;
     if (booking.status === "completed") acc[name].completed += 1;
     if (booking.status === "no_show") acc[name].noShow += 1;
+    acc[name].paymentAmount += Number(booking.paymentAmount || 0);
+    acc[name].paidAmount += Number(booking.paidAmount || 0);
+    acc[name].balanceAmount += Number(booking.balanceAmount || 0);
     return acc;
   }, {});
 
