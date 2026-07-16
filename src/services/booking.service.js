@@ -37,7 +37,9 @@ const normalizeListFilters = (query = {}) => ({
   clientType: String(query.clientType || "all").trim(),
   serviceName: String(query.serviceName || "").trim(),
   providerName: String(query.providerName || "").trim(),
-  sort: String(query.sort || "bookingDate_desc").trim()
+  sort: String(query.sort || "bookingDate_desc").trim(),
+  page: Math.max(Number(query.page) || 1, 1),
+  pageSize: Math.min(Math.max(Number(query.pageSize) || 25, 5), 100)
 });
 
 const buildBookingMatch = (filters) => {
@@ -99,14 +101,17 @@ export const listAdminBookings = async (query = {}) => {
     return {
       bookings: [],
       filters,
-      summary: { total: 0, pendingCall: 0, confirmed: 0, completed: 0, cancelled: 0 },
+      pagination: { page: filters.page, pageSize: filters.pageSize, total: 0, totalPages: 1 },
+      summary: { total: 0, matchingTotal: 0, pendingCall: 0, confirmed: 0, completed: 0, cancelled: 0 },
       filterOptions: { services: [], providers: [] }
     };
   }
 
   const match = buildBookingMatch(filters);
-  const [bookings, statusCounts, services, providers] = await Promise.all([
-    Booking.find(match).sort(getSort(filters.sort)).limit(300).lean(),
+  const skip = (filters.page - 1) * filters.pageSize;
+  const [bookings, total, statusCounts, services, providers] = await Promise.all([
+    Booking.find(match).sort(getSort(filters.sort)).skip(skip).limit(filters.pageSize).lean(),
+    Booking.countDocuments(match),
     Booking.aggregate([{ $match: match }, { $group: { _id: "$status", count: { $sum: 1 } } }]),
     Booking.distinct("serviceName"),
     Booking.distinct("providerName")
@@ -117,8 +122,15 @@ export const listAdminBookings = async (query = {}) => {
   return {
     bookings,
     filters,
+    pagination: {
+      page: filters.page,
+      pageSize: filters.pageSize,
+      total,
+      totalPages: Math.max(Math.ceil(total / filters.pageSize), 1)
+    },
     summary: {
-      total: bookings.length,
+      total,
+      matchingTotal: total,
       pendingCall: counts.pending_call || 0,
       confirmed: counts.confirmed || 0,
       completed: counts.completed || 0,

@@ -23,7 +23,7 @@ import {
 import { getUsers, patchUser, postUser } from "../controllers/user.controller.js";
 import { getPermissions, getRoles, patchRole, postRole, removeRole } from "../controllers/role.controller.js";
 import { getBookingReports } from "../controllers/report.controller.js";
-import { requireAuth, requirePermission } from "../middlewares/auth.middleware.js";
+import { requireAnyPermission, requireAuth, requirePermission } from "../middlewares/auth.middleware.js";
 import { uploadImage } from "../middlewares/upload.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { roleSchema } from "../validations/role.validation.js";
@@ -44,7 +44,7 @@ router.patch("/bookings/:id", requirePermission("bookings.update"), validate(adm
 router.patch("/bookings/:id/status", requirePermission("bookings.manage"), validate(bookingStatusSchema), patchBookingStatus);
 router.delete("/bookings/:id", requirePermission("bookings.delete"), deleteBooking);
 
-router.get("/catalog", requirePermission("services.view"), getAdminCatalog);
+router.get("/catalog", requireAnyPermission(["services.view", "providers.view", "availability.view"]), getAdminCatalog);
 router.post("/services", requirePermission("services.create"), validate(serviceSchema), postService);
 router.patch("/services/:serviceId", requirePermission("services.update"), validate(serviceSchema), patchService);
 router.delete("/services/:serviceId", requirePermission("services.delete"), deleteService);

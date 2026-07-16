@@ -36,3 +36,13 @@ export const requirePermission = (permissionKey) => (req, res, next) => {
 
   return next(new AppError("You do not have permission to access this resource.", 403));
 };
+
+export const requireAnyPermission = (permissionKeys) => (req, res, next) => {
+  const permissions = req.authUser?.role?.permissions || [];
+
+  if (req.authUser?.role?.slug === "owner" || permissionKeys.some((permissionKey) => permissions.includes(permissionKey))) {
+    return next();
+  }
+
+  return next(new AppError("You do not have permission to access this resource.", 403));
+};

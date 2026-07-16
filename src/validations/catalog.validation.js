@@ -41,6 +41,7 @@ export const providerSchema = (body) => {
   if (data.email && !emailPattern.test(data.email)) errors.email = "Provider email must be valid.";
   if (data.phone && data.phone.length < 6) errors.phone = "Provider phone must be at least 6 characters.";
   if (data.bio.length > 300) errors.bio = "Provider bio cannot exceed 300 characters.";
+  if (!data.serviceIds.length) errors.serviceIds = "Select at least one service for this provider.";
 
   return { valid: Object.keys(errors).length === 0, errors, data };
 };
