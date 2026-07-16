@@ -3,7 +3,10 @@ import multer from "multer";
 import { env } from "../config/env.js";
 import { AppError } from "../utils/AppError.js";
 
-if (env.cloudinaryUrl) cloudinary.config({ secure: true });
+if (env.cloudinaryUrl) {
+  cloudinary.config(true);
+  cloudinary.config({ secure: true });
+}
 
 const storage = multer.memoryStorage();
 
@@ -19,7 +22,7 @@ const imageFileFilter = (req, file, callback) => {
 export const uploadImage = multer({
   storage,
   fileFilter: imageFileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 }
+  limits: { fileSize: 5 * 1024 * 1024 }
 });
 
 export const uploadToCloudinary = (req, folder = "onlinebooking") => {
@@ -34,10 +37,11 @@ export const uploadToCloudinary = (req, folder = "onlinebooking") => {
         folder,
         resource_type: "image",
         overwrite: false,
-        transformation: [{ quality: "auto", fetch_format: "auto" }]
+        unique_filename: true
       },
       (error, result) => {
         if (error || !result?.secure_url) {
+          if (error) console.error("Cloudinary image upload failed:", error.message);
           reject(new AppError("Unable to upload image.", 502));
           return;
         }

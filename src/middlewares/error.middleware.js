@@ -7,8 +7,13 @@ export const notFoundHandler = (req, res, next) => {
 };
 
 export const errorHandler = (error, req, res, next) => {
-  const statusCode = error.statusCode || 500;
-  const message = statusCode === 500 ? "Internal server error" : error.message;
+  let statusCode = error.statusCode || 500;
+  let message = statusCode === 500 ? "Internal server error" : error.message;
+
+  if (error.name === "MulterError") {
+    statusCode = 400;
+    message = error.code === "LIMIT_FILE_SIZE" ? "Image size must be 5 MB or less." : "Invalid image upload.";
+  }
 
   if (statusCode === 500 && process.env.NODE_ENV !== "test") {
     console.error(error);
